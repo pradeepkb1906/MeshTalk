@@ -8,15 +8,15 @@ plugins {
 
 android {
     namespace = "com.meshtalk.app"
-    compileSdk = 34
+    compileSdk = 35
     buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "com.meshtalk.app"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.1"
+        targetSdk = 35
+        versionCode = 3
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
