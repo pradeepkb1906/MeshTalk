@@ -1,0 +1,54 @@
+# Built application files
+*.apk
+*.aab
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+build/
+
+# Gradle files
+.gradle/
+build/
+
+# Local configuration file
+local.properties
+
+# Android Studio
+*.iml
+.idea/
+.DS_Store
+
+# Keystore files (sensitive)
+*.jks
+*.keystore
+
+# Service account keys (sensitive)
+*.json
+!package.json
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Sensitive personal documents
+*.JPG
+*.jpg
+Pradeep*
+
+# Deployment scripts with credentials
+deploy_to_playstore.py
+

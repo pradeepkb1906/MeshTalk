@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark MeshTalk Theme -->
+    <style name="Theme.MeshTalk" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/mesh_primary</item>
+        <item name="colorPrimaryDark">@color/mesh_primary_dark</item>
+        <item name="colorAccent">@color/mesh_secondary</item>
+        <item name="android:windowBackground">@color/mesh_background_dark</item>
+    </style>
+
+    <!-- Splash Screen Theme (Dark) -->
+    <style name="Theme.MeshTalk.Splash" parent="Theme.MeshTalk">
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
+</resources>
+

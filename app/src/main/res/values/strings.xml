@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MeshTalk</string>
+    <string name="app_tagline">Communicate Without Internet</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome">Welcome to MeshTalk</string>
+    <string name="onboarding_no_internet">No Internet Needed</string>
+    <string name="onboarding_mesh_magic">Mesh Network Magic</string>
+    <string name="onboarding_emergency">Emergency Ready</string>
+    <string name="onboarding_connect">Connect Everyone</string>
+
+    <!-- Navigation -->
+    <string name="nav_conversations">Chats</string>
+    <string name="nav_peers">Peers</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Chat -->
+    <string name="chat_placeholder">Message via mesh…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_voice">Voice message</string>
+    <string name="chat_attach">Attach file</string>
+
+    <!-- Peers -->
+    <string name="peers_scanning">Scanning for nearby peers…</string>
+    <string name="peers_connected">Connected</string>
+    <string name="peers_discovered">Discovered</string>
+    <string name="peers_offline">Previously Seen</string>
+    <string name="peers_empty">No peers found nearby</string>
+
+    <!-- SOS -->
+    <string name="sos_title">Send SOS Alert</string>
+    <string name="sos_description">Broadcast emergency alert to all nearby MeshTalk users</string>
+    <string name="sos_send">SEND SOS</string>
+    <string name="sos_default_message">SOS - I need help!</string>
+
+    <!-- Settings -->
+    <string name="settings_profile">Profile</string>
+    <string name="settings_mesh">Mesh Network</string>
+    <string name="settings_transport">Transport Layers</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_about">About</string>
+
+    <!-- Mesh Service -->
+    <string name="service_title">MeshTalk Active</string>
+    <string name="service_description">Mesh networking is running</string>
+    <string name="service_stop">Stop</string>
+
+    <!-- Permissions -->
+    <string name="permission_bluetooth_title">Bluetooth Required</string>
+    <string name="permission_bluetooth_desc">MeshTalk needs Bluetooth to discover and communicate with nearby devices.</string>
+    <string name="permission_location_title">Location Required</string>
+    <string name="permission_location_desc">Location is required for Bluetooth scanning and WiFi Direct on Android.</string>
+    <string name="permission_notification_title">Notifications</string>
+    <string name="permission_notification_desc">Allow notifications to receive messages when the app is in background.</string>
+</resources>
+

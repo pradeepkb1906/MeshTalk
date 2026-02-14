@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mesh_primary">#00D9A6</color>
+    <color name="mesh_primary_dark">#00B389</color>
+    <color name="mesh_secondary">#2979FF</color>
+    <color name="mesh_background">#F8FFFE</color>
+    <color name="mesh_background_dark">#0A1A14</color>
+    <color name="mesh_surface">#FFFFFF</color>
+    <color name="mesh_surface_dark">#122A20</color>
+    <color name="mesh_connected">#00E676</color>
+    <color name="mesh_disconnected">#FF5252</color>
+    <color name="sos_red">#FF1744</color>
+    <color name="splash_background">#00D9A6</color>
+</resources>
+
