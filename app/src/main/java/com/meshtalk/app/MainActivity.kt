@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.meshtalk.app.ui.navigation.MeshTalkNavHost
 import com.meshtalk.app.ui.theme.MeshTalkTheme
+import androidx.compose.runtime.*
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -33,7 +34,17 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MeshTalkNavHost()
+                    var permissionsGranted by remember { mutableStateOf(false) }
+
+                    if (permissionsGranted) {
+                        MeshTalkNavHost()
+                    } else {
+                        com.meshtalk.app.ui.screens.PermissionScreen(
+                            onPermissionsGranted = {
+                                permissionsGranted = true
+                            }
+                        )
+                    }
                 }
             }
         }
