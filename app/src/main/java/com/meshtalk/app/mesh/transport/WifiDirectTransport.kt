@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.p2p.*
 import android.util.Log
+import com.meshtalk.app.data.model.TransportType
 import com.meshtalk.app.data.preferences.UserPreferences
 import com.meshtalk.app.mesh.MeshPacket
 import com.meshtalk.app.mesh.parseMeshPacket
@@ -50,6 +51,7 @@ class WifiDirectTransport @Inject constructor(
     }
 
     override val name: String = "WiFi Direct"
+    override val type: TransportType = TransportType.WIFI_DIRECT
     override var isActive: Boolean = false
         private set
 

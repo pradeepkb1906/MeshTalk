@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
+import com.meshtalk.app.data.model.TransportType
 import com.meshtalk.app.data.preferences.UserPreferences
 import com.meshtalk.app.mesh.MeshPacket
 import com.meshtalk.app.mesh.parseMeshPacket
@@ -39,9 +40,11 @@ class NearbyTransport @Inject constructor(
         private const val TAG = "NearbyTransport"
         private const val SERVICE_ID = "com.meshtalk.mesh"
         private val STRATEGY = Strategy.P2P_CLUSTER
+        private const val MAX_CONNECTIONS = 6
     }
 
     override val name: String = "Nearby Connections"
+    override val type: TransportType = TransportType.NEARBY
     override var isActive: Boolean = false
         private set
 
@@ -191,6 +194,12 @@ class NearbyTransport @Inject constructor(
 
             // Don't reconnect if already connected
             if (connectedEndpoints.containsKey(endpointId)) return
+
+            // Limit maximum simultaneous connections to prevent stability issues
+            if (connectedEndpoints.size >= MAX_CONNECTIONS) {
+                Log.w(TAG, "Ignoring endpoint $endpointId: Max connections reached (${connectedEndpoints.size})")
+                return
+            }
 
             // Request connection
             connectionsClient.requestConnection(

@@ -1,6 +1,7 @@
 package com.meshtalk.app.mesh.transport
 
 import android.util.Log
+import com.meshtalk.app.data.model.TransportType
 import com.meshtalk.app.mesh.MeshPacket
 import com.meshtalk.app.mesh.MeshRouter
 import kotlinx.coroutines.*
@@ -45,6 +46,8 @@ class TransportManager @Inject constructor(
     private val nearbyTransport: NearbyTransport,
     private val bleTransport: BleTransport,
     private val wifiDirectTransport: WifiDirectTransport,
+    private val wifiAwareTransport: WifiAwareTransport,
+    private val ultrasonicTransport: UltrasonicTransport,
     private val meshRouter: MeshRouter
 ) {
     companion object {
@@ -68,12 +71,18 @@ class TransportManager @Inject constructor(
         meshRouter.initialize()
 
         // Set the router's send callback to use our broadcast method
-        meshRouter.setSendCallback { packet, endpointId ->
-            sendThroughTransports(packet, endpointId)
+        meshRouter.setSendCallback { packet, endpointId, transportType ->
+            sendThroughTransports(packet, endpointId, transportType)
         }
 
         // Configure all transports with common callbacks
-        val allTransports = listOf(nearbyTransport, bleTransport, wifiDirectTransport)
+        val allTransports = listOf(
+            nearbyTransport, 
+            bleTransport, 
+            wifiDirectTransport,
+            wifiAwareTransport,
+            ultrasonicTransport
+        )
 
         for (transport in allTransports) {
             configureTransport(transport)
@@ -104,6 +113,26 @@ class TransportManager @Inject constructor(
             Log.i(TAG, "WiFi Direct transport started")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start WiFi Direct transport: ${e.message}")
+        }
+        
+        // Start WiFi Aware (NAN)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                wifiAwareTransport.start()
+                transports.add(wifiAwareTransport)
+                Log.i(TAG, "WiFi Aware transport started")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start WiFi Aware transport: ${e.message}")
+            }
+        }
+        
+        // Start Ultrasonic
+        try {
+            ultrasonicTransport.start()
+            transports.add(ultrasonicTransport)
+            Log.i(TAG, "Ultrasonic transport started")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start Ultrasonic transport: ${e.message}")
         }
 
         // Start periodic peer announcements
@@ -142,13 +171,35 @@ class TransportManager @Inject constructor(
     /**
      * Send a packet through all active transports.
      */
-    private suspend fun sendThroughTransports(packet: MeshPacket, endpointId: String?) {
-        for (transport in transports) {
-            if (transport.isActive) {
+    /**
+     * Send a packet through transports.
+     * If transportType is specified, sends ONLY via that transport.
+     * If transportType is null, broadcasts via ALL active transports.
+     */
+    private suspend fun sendThroughTransports(
+        packet: MeshPacket, 
+        endpointId: String?, 
+        transportType: TransportType? = null
+    ) {
+        if (transportType != null) {
+            // Targeted send
+            val transport = transports.find { it.type == transportType }
+            if (transport?.isActive == true) {
                 try {
                     transport.sendPacket(packet, endpointId)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error sending via ${transport.name}: ${e.message}")
+                }
+            }
+        } else {
+            // Broadcast/Flood
+            for (transport in transports) {
+                if (transport.isActive) {
+                    try {
+                        transport.sendPacket(packet, endpointId)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error sending via ${transport.name}: ${e.message}")
+                    }
                 }
             }
         }
@@ -184,7 +235,9 @@ class TransportManager @Inject constructor(
             connectedPeerCount = connectedPeers,
             nearbyActive = nearbyTransport.isActive,
             bleActive = bleTransport.isActive,
-            wifiDirectActive = wifiDirectTransport.isActive
+            wifiDirectActive = wifiDirectTransport.isActive,
+            wifiAwareActive = wifiAwareTransport.isActive,
+            ultrasonicActive = ultrasonicTransport.isActive
         )
     }
 
@@ -193,6 +246,8 @@ class TransportManager @Inject constructor(
         nearbyTransport.destroy()
         bleTransport.destroy()
         wifiDirectTransport.destroy()
+        wifiAwareTransport.destroy()
+        ultrasonicTransport.destroy()
         meshRouter.destroy()
     }
 }
@@ -206,6 +261,8 @@ data class MeshConnectionStatus(
     val connectedPeerCount: Int = 0,
     val nearbyActive: Boolean = false,
     val bleActive: Boolean = false,
-    val wifiDirectActive: Boolean = false
+    val wifiDirectActive: Boolean = false,
+    val wifiAwareActive: Boolean = false,
+    val ultrasonicActive: Boolean = false
 )
 

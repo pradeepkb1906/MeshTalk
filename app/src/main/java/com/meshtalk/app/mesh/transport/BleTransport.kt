@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import com.meshtalk.app.data.preferences.UserPreferences
+import com.meshtalk.app.data.model.TransportType
 import com.meshtalk.app.mesh.MeshPacket
 import com.meshtalk.app.mesh.parseMeshPacket
 import kotlinx.coroutines.*
@@ -56,6 +57,7 @@ class BleTransport @Inject constructor(
     }
 
     override val name: String = "Bluetooth LE"
+    override val type: TransportType = TransportType.BLE
     override var isActive: Boolean = false
         private set
 
@@ -67,8 +69,13 @@ class BleTransport @Inject constructor(
     private val bleAdvertiser by lazy { bluetoothAdapter?.bluetoothLeAdvertiser }
 
     private var gattServer: BluetoothGattServer? = null
+    // Clients who connected to us (we act as Server)
     private val connectedDevices = ConcurrentHashMap<String, BluetoothDevice>()
-    private val messageBuffer = ConcurrentHashMap<String, ByteArray>()
+    // Servers we connected to (we act as Client)
+    private val connectedGattClients = ConcurrentHashMap<String, BluetoothGatt>()
+    
+    // Buffer for incoming partial messages (MAC -> (Timestamp, Bytes))
+    private val messageBuffer = ConcurrentHashMap<String, Pair<Long, ByteArray>>()
 
     private var onPacketReceived: (suspend (MeshPacket, String) -> Unit)? = null
     private var onPeerConnected: (suspend (String, String, String) -> Unit)? = null
@@ -91,6 +98,7 @@ class BleTransport @Inject constructor(
             startGattServer()
             startAdvertising()
             startScanning()
+            startBufferCleanup()
             isActive = true
         } catch (e: SecurityException) {
             Log.e(TAG, "BLE permissions not granted: ${e.message}")
@@ -122,27 +130,52 @@ class BleTransport @Inject constructor(
         if (gattServer == null) return
 
         try {
-            val service = gattServer?.getService(MESH_SERVICE_UUID) ?: return
-            val characteristic = service.getCharacteristic(MESH_CHARACTERISTIC_UUID) ?: return
-
-            // Chunk data if necessary
-            val chunks = data.toList().chunked(MAX_CHUNK_SIZE).map { it.toByteArray() }
-
-            val devices = if (endpointId != null) {
+            // 1. Send to devices connected to us (we are Server) - use Notification
+            val serverDevices = if (endpointId != null) {
                 listOfNotNull(connectedDevices[endpointId])
             } else {
                 connectedDevices.values.toList()
             }
 
-            for (device in devices) {
-                for (chunk in chunks) {
-                    characteristic.value = chunk
-                    try {
-                        gattServer?.notifyCharacteristicChanged(device, characteristic, false)
-                    } catch (e: SecurityException) {
-                        Log.e(TAG, "Cannot notify device: ${e.message}")
+            if (serverDevices.isNotEmpty()) {
+                val service = gattServer?.getService(MESH_SERVICE_UUID)
+                val characteristic = service?.getCharacteristic(MESH_CHARACTERISTIC_UUID)
+                
+                if (characteristic != null) {
+                    for (device in serverDevices) {
+                        for (chunk in chunks) {
+                            characteristic.value = chunk
+                            try {
+                                gattServer?.notifyCharacteristicChanged(device, characteristic, false)
+                            } catch (e: SecurityException) {
+                                Log.e(TAG, "Cannot notify device: ${e.message}")
+                            }
+                            delay(50) // Small delay between chunks
+                        }
                     }
-                    delay(50) // Small delay between chunks
+                }
+            }
+
+            // 2. Send to devices we connected to (we are Client) - use Write
+            val clientGatts = if (endpointId != null) {
+                listOfNotNull(connectedGattClients[endpointId])
+            } else {
+                connectedGattClients.values.toList()
+            }
+
+            for (gatt in clientGatts) {
+                val service = gatt.getService(MESH_SERVICE_UUID) ?: continue
+                val characteristic = service.getCharacteristic(MESH_CHARACTERISTIC_UUID) ?: continue
+                
+                for (chunk in chunks) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        gatt.writeCharacteristic(characteristic, chunk, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+                    } else {
+                        characteristic.value = chunk
+                        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                        gatt.writeCharacteristic(characteristic)
+                    }
+                    delay(50) 
                 }
             }
         } catch (e: Exception) {
@@ -236,8 +269,10 @@ class BleTransport @Inject constructor(
                         onPacketReceived?.invoke(packet, device.address)
                     }
                 } else {
+                } else {
                     // Buffer for chunked messages
-                    val existing = messageBuffer[device.address] ?: byteArrayOf()
+                    val now = System.currentTimeMillis()
+                    val existing = messageBuffer[device.address]?.second ?: byteArrayOf()
                     val combined = existing + value
                     val parsed = parseMeshPacket(combined)
                     if (parsed != null) {
@@ -246,8 +281,9 @@ class BleTransport @Inject constructor(
                             onPacketReceived?.invoke(parsed, device.address)
                         }
                     } else {
-                        messageBuffer[device.address] = combined
+                        messageBuffer[device.address] = Pair(now, combined)
                     }
+                }
                 }
             }
 
@@ -348,10 +384,16 @@ class BleTransport @Inject constructor(
                 device.connectGatt(context, false, object : BluetoothGattCallback() {
                     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                         if (newState == BluetoothGatt.STATE_CONNECTED) {
-                            connectedDevices[address] = device
+                            connectedGattClients[address] = gatt
                             gatt.discoverServices()
                             scope.launch {
                                 onPeerConnected?.invoke(address, address, "BLE-$address")
+                            }
+                        } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+                            connectedGattClients.remove(address)
+                            gatt.close()
+                            scope.launch {
+                                onPeerDisconnected?.invoke(address)
                             }
                         }
                     }
@@ -370,9 +412,29 @@ class BleTransport @Inject constructor(
         }
     }
 
+    private fun startBufferCleanup() {
+        scope.launch {
+            while (isActive) {
+                delay(60_000) // Every minute
+                val now = System.currentTimeMillis()
+                val cleanupThreshold = now - 30_000 // Remove incomplete packets older than 30s
+                
+                val iterator = messageBuffer.iterator()
+                while (iterator.hasNext()) {
+                    val entry = iterator.next()
+                    if (entry.value.first < cleanupThreshold) {
+                        iterator.remove()
+                    }
+                }
+            }
+        }
+    }
+
     fun destroy() {
         scope.cancel()
         connectedDevices.clear()
+        connectedGattClients.values.forEach { it.close() }
+        connectedGattClients.clear()
         messageBuffer.clear()
     }
 }

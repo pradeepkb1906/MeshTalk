@@ -20,6 +20,9 @@ interface Transport {
     /** Human-readable name of this transport */
     val name: String
 
+    /** The type of transport */
+    val type: com.meshtalk.app.data.model.TransportType
+
     /** Whether this transport is currently active and scanning */
     val isActive: Boolean
 

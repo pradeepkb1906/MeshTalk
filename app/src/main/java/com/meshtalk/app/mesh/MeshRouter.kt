@@ -58,7 +58,7 @@ class MeshRouter @Inject constructor(
     private val seenPackets = ConcurrentHashMap<String, Long>()
 
     // Callback for sending packets out via transport layer
-    private var sendCallback: (suspend (MeshPacket, String?) -> Unit)? = null
+    private var sendCallback: (suspend (MeshPacket, String?, TransportType?) -> Unit)? = null
 
     // Flow of incoming messages for the UI
     private val _incomingMessages = MutableSharedFlow<MeshMessage>(extraBufferCapacity = 64)
@@ -92,7 +92,10 @@ class MeshRouter @Inject constructor(
     /**
      * Register the callback used to send packets through the transport layer.
      */
-    fun setSendCallback(callback: suspend (MeshPacket, String?) -> Unit) {
+    /**
+     * Register the callback used to send packets through the transport layer.
+     */
+    fun setSendCallback(callback: suspend (MeshPacket, String?, TransportType?) -> Unit) {
         sendCallback = callback
     }
 
@@ -575,6 +578,8 @@ class MeshRouter @Inject constructor(
      */
     private suspend fun deliverStoredMessages(targetMeshId: String) {
         val undelivered = messageDao.getUndeliveredForPeer(targetMeshId)
+        val peer = peerDao.getByMeshId(targetMeshId)
+        
         for (msg in undelivered) {
             val packet = MeshPacket(
                 packetId = msg.packetId,
@@ -586,7 +591,12 @@ class MeshRouter @Inject constructor(
                 contentType = msg.type,
                 content = msg.content
             )
-            sendCallback?.invoke(packet, null)
+            
+            if (peer != null && peer.connectionState == ConnectionState.CONNECTED) {
+                sendCallback?.invoke(packet, peer.endpointId, peer.transport)
+            } else {
+                sendCallback?.invoke(packet, null, null)
+            }
         }
         if (undelivered.isNotEmpty()) {
             Log.i(TAG, "Delivered ${undelivered.size} stored messages to ${targetMeshId.take(8)}")
@@ -612,9 +622,23 @@ class MeshRouter @Inject constructor(
     /**
      * Send a packet to all connected peers via the transport layer.
      */
+    /**
+     * Send a packet. Tries unicast if destination is a direct neighbor, otherwise broadcasts.
+     */
     private suspend fun broadcastToAllPeers(packet: MeshPacket) {
         try {
-            sendCallback?.invoke(packet, null) // null = broadcast to all
+            if (packet.destinationId != MeshPacket.BROADCAST_ADDRESS && packet.destinationId != MeshPacket.SOS_ADDRESS) {
+                // Try to find direct connection
+                val peer = peerDao.getByMeshId(packet.destinationId)
+                if (peer != null && peer.connectionState == ConnectionState.CONNECTED) {
+                    // Unicast optimization
+                    sendCallback?.invoke(packet, peer.endpointId, peer.transport)
+                    return
+                }
+            }
+            
+            // Fallback to broadcast
+            sendCallback?.invoke(packet, null, null)
         } catch (e: Exception) {
             Log.e(TAG, "Error broadcasting packet: ${e.message}")
         }
