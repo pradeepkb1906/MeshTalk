@@ -239,14 +239,34 @@ private fun ChatInputBar(
 
             // Send or Voice button
             if (messageText.isNotBlank()) {
-                FilledIconButton(
-                    onClick = onSend,
-                    shape = CircleShape,
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                val context = androidx.compose.ui.platform.LocalContext.current
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // SMS Fallback Button
+                    IconButton(
+                        onClick = {
+                            val smsIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                data = android.net.Uri.parse("sms:")
+                                putExtra("sms_body", messageText)
+                            }
+                            context.startActivity(smsIntent)
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Sms,
+                            contentDescription = "SMS",
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+
+                    FilledIconButton(
+                        onClick = onSend,
+                        shape = CircleShape,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                    }
                 }
             } else {
                 FilledIconButton(

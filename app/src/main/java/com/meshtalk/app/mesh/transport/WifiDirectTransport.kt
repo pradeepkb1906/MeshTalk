@@ -47,7 +47,7 @@ class WifiDirectTransport @Inject constructor(
         private const val TAG = "WifiDirectTransport"
         private const val MESH_PORT = 8765
         private const val SOCKET_TIMEOUT = 10_000
-        private const val DISCOVERY_INTERVAL_MS = 30_000L
+        private const val DISCOVERY_INTERVAL_MS = 10_000L
     }
 
     override val name: String = "WiFi Direct"
