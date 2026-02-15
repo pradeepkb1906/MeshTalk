@@ -130,6 +130,9 @@ class BleTransport @Inject constructor(
         if (gattServer == null) return
 
         try {
+            // Chunk data if necessary
+            val chunks = data.toList().chunked(MAX_CHUNK_SIZE).map { it.toByteArray() }
+
             // 1. Send to devices connected to us (we are Server) - use Notification
             val serverDevices = if (endpointId != null) {
                 listOfNotNull(connectedDevices[endpointId])
