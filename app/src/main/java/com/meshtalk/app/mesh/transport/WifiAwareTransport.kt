@@ -123,8 +123,8 @@ class WifiAwareTransport @Inject constructor(
 
         try {
             wifiAwareManager?.attach(attachCallback!!, null)
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Permission denied for WiFi Aware: ${e.message}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to attach WiFi Aware: ${e.message}")
         }
     }
 

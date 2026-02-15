@@ -68,10 +68,14 @@ class NearbyTransport @Inject constructor(
         localDisplayName = userPreferences.getDisplayNameSync()
 
         Log.i(TAG, "Starting Nearby Transport: meshId=${localMeshId.take(8)}, name=$localDisplayName")
-
-        startAdvertising()
-        startDiscovery()
-        isActive = true
+        
+        try {
+            startAdvertising()
+            startDiscovery()
+            isActive = true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start Nearby Connections: ${e.message}")
+        }
     }
 
     override suspend fun stop() {

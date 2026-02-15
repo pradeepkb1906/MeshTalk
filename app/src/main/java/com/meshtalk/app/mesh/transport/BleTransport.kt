@@ -100,8 +100,8 @@ class BleTransport @Inject constructor(
             startScanning()
             startBufferCleanup()
             isActive = true
-        } catch (e: SecurityException) {
-            Log.e(TAG, "BLE permissions not granted: ${e.message}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start BLE: ${e.message}")
         }
     }
 
