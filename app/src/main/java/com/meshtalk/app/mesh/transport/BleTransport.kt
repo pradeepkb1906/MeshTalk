@@ -47,9 +47,12 @@ class BleTransport @Inject constructor(
         private const val TAG = "BleTransport"
 
         // Custom UUIDs for MeshTalk BLE service
-        val MESH_SERVICE_UUID: UUID = UUID.fromString("0000MESH-0000-1000-8000-00805F9B34FB")
-        val MESH_CHARACTERISTIC_UUID: UUID = UUID.fromString("0000MSG1-0000-1000-8000-00805F9B34FB")
-        val MESH_NAME_CHARACTERISTIC_UUID: UUID = UUID.fromString("0000NAM1-0000-1000-8000-00805F9B34FB")
+        // Custom UUIDs for MeshTalk BLE service
+        // Note: UUIDs must be valid hexadecimal. We use a base UUID and modify the 16-bit prefix.
+        // Base: 0000XXXX-0000-1000-8000-00805F9B34FB
+        val MESH_SERVICE_UUID: UUID = UUID.fromString("0000FE60-0000-1000-8000-00805F9B34FB")
+        val MESH_CHARACTERISTIC_UUID: UUID = UUID.fromString("0000FE61-0000-1000-8000-00805F9B34FB")
+        val MESH_NAME_CHARACTERISTIC_UUID: UUID = UUID.fromString("0000FE62-0000-1000-8000-00805F9B34FB")
 
         private const val SCAN_PERIOD_MS = 10_000L  // 10 second scan windows
         private const val SCAN_INTERVAL_MS = 5_000L // 5 second pause between scans
