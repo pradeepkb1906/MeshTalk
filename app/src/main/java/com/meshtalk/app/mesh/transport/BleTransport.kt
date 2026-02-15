@@ -360,6 +360,8 @@ class BleTransport @Inject constructor(
 
     @Suppress("MissingPermission")
     private suspend fun performScan() {
+        if (bleScanner == null) return
+
         val filters = listOf(
             ScanFilter.Builder()
                 .setServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
@@ -367,13 +369,17 @@ class BleTransport @Inject constructor(
         )
 
         val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .setScanMode(ScanSettings.SCAN_MODE_BALANCED) // Better for battery and background
             .setReportDelay(0)
             .build()
 
-        bleScanner?.startScan(filters, settings, scanCallback)
-        delay(SCAN_PERIOD_MS)
-        bleScanner?.stopScan(scanCallback)
+        try {
+            bleScanner?.startScan(filters, settings, scanCallback)
+            delay(SCAN_PERIOD_MS) // Scan for this duration
+            bleScanner?.stopScan(scanCallback)
+        } catch (e: Exception) {
+             Log.e(TAG, "Error during BLE scan: ${e.message}")
+        }
     }
 
     private val scanCallback = object : ScanCallback() {
@@ -382,14 +388,23 @@ class BleTransport @Inject constructor(
             val device = result.device
             val address = device.address
 
-            if (!connectedDevices.containsKey(address)) {
+            // 1. Immediately show as "Discovered" in UI
+            scope.launch {
+                 val displayName = if (device.name.isNullOrBlank()) "BLE Peer" else device.name
+                 onPeerConnected?.invoke(address, address, displayName)
+            }
+
+            // 2. Attempt to connect if not already connected
+            if (!connectedGattClients.containsKey(address)) {
                 Log.i(TAG, "Found MeshTalk BLE device: $address (RSSI: ${result.rssi})")
-                // Attempt to connect via GATT client
+                
+                // Connect
                 device.connectGatt(context, false, object : BluetoothGattCallback() {
                     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                         if (newState == BluetoothGatt.STATE_CONNECTED) {
                             connectedGattClients[address] = gatt
                             gatt.discoverServices()
+                             // Update UI to "Connected" (handled by existing logic, but ensuring it fires)
                             scope.launch {
                                 onPeerConnected?.invoke(address, address, "BLE-$address")
                             }
