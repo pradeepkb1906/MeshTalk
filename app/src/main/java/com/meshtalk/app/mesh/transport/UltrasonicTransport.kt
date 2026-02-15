@@ -121,7 +121,7 @@ class UltrasonicTransport @Inject constructor(
         // Ultrasonic is strictly broadcast (omni-directional sound)
         // We only send small beacons or "HELLO" packets due to low bandwidth
         
-        if (packet.type == com.meshtalk.app.data.model.PacketType.ANNOUNCEMENT) {
+        if (packet.type == com.meshtalk.app.mesh.PacketType.PEER_ANNOUNCE) {
             sendHello()
         } else {
              // For other packets, send a tiny hash payload as a "ping"
