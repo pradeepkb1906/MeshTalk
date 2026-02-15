@@ -85,6 +85,14 @@ class UltrasonicTransport @Inject constructor(
         try {
             startListening()
             isActive = true
+            
+            // Start periodic "Hello" beacon (every 30 seconds)
+            scope.launch {
+                while (isActive) {
+                    sendHello()
+                    delay(30_000) // 30 seconds
+                }
+            }
         } catch (e: SecurityException) {
             Log.e(TAG, "Permission denied for Audio: ${e.message}")
         }
@@ -111,15 +119,35 @@ class UltrasonicTransport @Inject constructor(
 
     override suspend fun sendPacket(packet: MeshPacket, endpointId: String?) {
         // Ultrasonic is strictly broadcast (omni-directional sound)
-        // Only feasible for very small payloads (like handshakes/IDs), not full JSON packets
-        // This implementation mimics sending a tiny "beacon" payload
+        // We only send small beacons or "HELLO" packets due to low bandwidth
         
-        // For demo/prototype purposes, we send a simplified signal
-        // In production, this would use a robust modem library like Quiet or Chirp
-        
-        val payload = packet.packetId.hashCode() // Send hash as a simple beacon
-        val bytes = ByteBuffer.allocate(4).putInt(payload).array()
-        sendBytes(bytes, endpointId)
+        if (packet.type == com.meshtalk.app.data.model.PacketType.ANNOUNCEMENT) {
+            sendHello()
+        } else {
+             // For other packets, send a tiny hash payload as a "ping"
+            val payload = packet.packetId.hashCode() 
+            val bytes = ByteBuffer.allocate(4).putInt(payload).array()
+            sendBytes(bytes, endpointId)
+        }
+    }
+
+    /**
+     * Broadcasts a "HELLO" message via ultrasound to announce presence to nearby devices.
+     * Payload: "HELLO" + First 4 chars of MeshID
+     */
+    fun sendHello() {
+        scope.launch {
+            if (!isActive) return@launch
+            
+            try {
+                Log.d(TAG, "Broadcasting Ultrasonic Hello")
+                val shortId = if (localMeshId.length >= 4) localMeshId.substring(0, 4) else localMeshId
+                val payload = "HELLO:$shortId".toByteArray(Charsets.UTF_8)
+                sendBytes(payload, null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send Hello: ${e.message}")
+            }
+        }
     }
 
     override suspend fun sendBytes(data: ByteArray, endpointId: String?) {
