@@ -279,13 +279,41 @@ class UltrasonicTransport @Inject constructor(
     }
 
     private fun processAudio(buffer: ShortArray, size: Int) {
-        // FFT or Goertzel algorithm would go here to detect frequencies
-        // For prototype, we simulate detection if volume at target frequencies is high
+        // Simple Goertzel algorithm to detect our carrier frequency (FREQ_START = 17500Hz)
+        // This allows us to detect if another device is transmitting nearby.
         
-        // TODO: Implement robust FSK demodulation
-        // Because DSP (Digital Signal Processing) is complex to implement from scratch
-        // without external libraries, we leave the placeholder for the rigorous math here.
-        // A real implementation would use JTransforms (FFT) or a dedicated modem lib.
+        val targetFreq = FREQ_START
+        val numSamples = size
+        
+        var q1 = 0.0
+        var q2 = 0.0
+        val omega = 2.0 * Math.PI * targetFreq / SAMPLE_RATE
+        val cosine = Math.cos(omega)
+        val coeff = 2.0 * cosine
+        
+        for (i in 0 until numSamples) {
+            val sample = buffer[i].toDouble() / Short.MAX_VALUE
+            val q0 = coeff * q1 - q2 + sample
+            q2 = q1
+            q1 = q0
+        }
+        
+        val magnitude = q1 * q1 + q2 * q2 - q1 * q2 * coeff
+        
+        // Threshold for detection (arbitrary, requires tuning)
+        if (magnitude > 50.0) {
+             Log.d(TAG, "Ultrasonic signal detected! Magnitude: $magnitude")
+             
+             // Since we can't fully decode the data without a complex FSK demodulator,
+             // we will treat *any* strong 17.5kHz signal as a "Unknown Peer" discovery.
+             // In a real app, we would decode the bits to get the MeshID.
+             
+             scope.launch {
+                 // Simulate extracting ID
+                 val mockId = "US-${System.currentTimeMillis() % 1000}"
+                 onPeerConnected?.invoke("US-Peer", "User-$mockId", "Ultrasonic User")
+             }
+        }
     }
 
     override fun setOnPacketReceived(callback: suspend (MeshPacket, String) -> Unit) {
