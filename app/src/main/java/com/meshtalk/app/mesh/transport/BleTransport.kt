@@ -269,7 +269,6 @@ class BleTransport @Inject constructor(
                         onPacketReceived?.invoke(packet, device.address)
                     }
                 } else {
-                } else {
                     // Buffer for chunked messages
                     val now = System.currentTimeMillis()
                     val existing = messageBuffer[device.address]?.second ?: byteArrayOf()
@@ -283,7 +282,6 @@ class BleTransport @Inject constructor(
                     } else {
                         messageBuffer[device.address] = Pair(now, combined)
                     }
-                }
                 }
             }
 
