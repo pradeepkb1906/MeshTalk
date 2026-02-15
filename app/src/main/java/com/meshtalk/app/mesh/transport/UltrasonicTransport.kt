@@ -204,36 +204,49 @@ class UltrasonicTransport @Inject constructor(
 
     @Suppress("MissingPermission")
     private fun startListening() {
-        val bufferSize = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        ) * 2
+        try {
+            val minBufferSize = AudioRecord.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
 
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            bufferSize
-        )
-        
-        if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-            Log.e(TAG, "AudioRecord initialization failed")
-            return
-        }
-        
-        audioRecord?.startRecording()
-        
-        recordingJob = scope.launch {
-            val buffer = ShortArray(bufferSize)
-            while (isActive) {
-                val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
-                if (read > 0) {
-                    processAudio(buffer, read)
-                }
-                yield() // Cooperate
+            if (minBufferSize <= 0) {
+                Log.e(TAG, "Invalid buffer size: $minBufferSize. Audio capture not supported.")
+                isActive = false
+                return
             }
+
+            val bufferSize = minBufferSize * 2
+
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize
+            )
+            
+            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                Log.e(TAG, "AudioRecord initialization failed")
+                return
+            }
+            
+            audioRecord?.startRecording()
+            
+            recordingJob = scope.launch {
+                val buffer = ShortArray(bufferSize)
+                while (isActive) {
+                    val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                    if (read > 0) {
+                        processAudio(buffer, read)
+                    }
+                    yield() // Cooperate
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting audio listener: ${e.message}")
+            isActive = false
         }
     }
 
